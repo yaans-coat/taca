@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proxy Browser</title>
+
+<style>
+body { margin:0; font-family:Arial; background:#0f172a; color:white; overflow:hidden; }
+
+/* animated grid background */
+body::before {
+  content:"";
+  position:fixed;
+  width:200%;
+  height:200%;
+  background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size:40px 40px;
+  animation: moveGrid 20s linear infinite;
+  z-index:-1;
+}
+
+@keyframes moveGrid {
+  from { transform: translate(0,0); }
+  to { transform: translate(-40px,-40px); }
+}
+
+.topbar { background:#1e293b; padding:8px; display:flex; flex-direction:column; gap:6px; }
+.tabs { display:flex; gap:5px; overflow-x:auto; }
+.tab { background:#334155; padding:6px 10px; border-radius:6px; cursor:pointer; }
+.tab.active { background:#38bdf8; color:black; }
+.controls, .presets, .auth { display:flex; gap:5px; flex-wrap:wrap; }
+input { flex:1; padding:8px; border-radius:6px; border:none; }
+button { padding:8px 10px; border:none; border-radius:6px; background:#38bdf8; cursor:pointer; }
+
+iframe { width:100%; height:calc(100vh - 200px); border:none; background:white; display:none; }
+
+/* homepage */
+.home {
+  height:calc(100vh - 200px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+.home h1 {
+  font-size:40px;
+  margin-bottom:10px;
+}
+
+.home p {
+  opacity:0.7;
+}
+
+.quick {
+  margin-top:20px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+.quick button {
+  background:#334155;
+}
+
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tabs" id="tabs"></div>
+
+  <div class="controls">
+    <input id="urlInput" placeholder="Search or enter URL">
+    <button onclick="loadSite()">Go</button>
+    <button onclick="newTab()">+ Tab</button>
+    <button onclick="saveTabs()">Save</button>
+  </div>
+
+  <div class="presets">
+    <button onclick="openPreset('https://youtube.com')">YouTube</button>
+    <button onclick="openPreset('https://google.com')">Google</button>
+    <button onclick="openPreset('https://wikipedia.org')">Wikipedia</button>
+    <button onclick="openPreset('https://discord.com')">Discord</button>
+  </div>
+
+  <div class="auth">
+    <button onclick="login('Google')">Google Login</button>
+    <button onclick="login('Microsoft')">Microsoft Login</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div class="home" id="home">
+  <h1>Proxy Browser</h1>
+  <p>Fast. Clean. Minimal.</p>
+
+  <div class="quick">
+    <button onclick="openPreset('https://youtube.com')">YouTube</button>
+    <button onclick="openPreset('https://google.com')">Google</button>
+    <button onclick="openPreset('https://wikipedia.org')">Wikipedia</button>
+  </div>
+</div>
+
+<iframe id="viewer"></iframe>
+
+<script>
+let tabs = JSON.parse(localStorage.getItem('tabs')) || [];
+let currentTab = 0;
+let user = localStorage.getItem('user') || null;
+
+function renderTabs(){
+  const container = document.getElementById('tabs');
+  container.innerHTML='';
+  tabs.forEach((tab,i)=>{
+    const el=document.createElement('div');
+    el.className='tab'+(i===currentTab?' active':'');
+    el.innerText=tab.title||'New Tab';
+    el.onclick=()=>switchTab(i);
+    container.appendChild(el);
+  });
+}
+
+function newTab(){
+  tabs.push({url:'',title:'New Tab'});
+  currentTab=tabs.length-1;
+  showHome();
+  renderTabs();
+}
+
+function switchTab(i){
+  currentTab=i;
+  if(!tabs[i].url){ showHome(); }
+  else{
+    document.getElementById('viewer').style.display='block';
+    document.getElementById('home').style.display='none';
+    document.getElementById('viewer').src=tabs[i].url;
+  }
+  renderTabs();
+}
+
+function proxy(url){
+  return 'https://api.allorigins.win/raw?url='+encodeURIComponent(url);
+}
+
+function loadSite(){
+  let url=document.getElementById('urlInput').value.trim();
+  if(!url.startsWith('http')) url='https://'+url;
+
+  const proxied=proxy(url);
+  tabs[currentTab]={url:proxied,title:url};
+
+  document.getElementById('home').style.display='none';
+  document.getElementById('viewer').style.display='block';
+  document.getElementById('viewer').src=proxied;
+
+  addHistory(url);
+  renderTabs();
+}
+
+function openPreset(url){
+  document.getElementById('urlInput').value=url;
+  loadSite();
+}
+
+function showHome(){
+  document.getElementById('viewer').style.display='none';
+  document.getElementById('home').style.display='flex';
+}
+
+function saveTabs(){
+  localStorage.setItem('tabs', JSON.stringify(tabs));
+  alert('Tabs saved');
+}
+
+function login(provider){
+  user = provider + '_user';
+  localStorage.setItem('user', user);
+  alert('Logged in as '+user);
+}
+
+function logout(){
+  user=null;
+  localStorage.removeItem('user');
+  alert('Logged out');
+}
+
+function addHistory(url){
+  let history = JSON.parse(localStorage.getItem('history')||'[]');
+  history.push(url);
+  localStorage.setItem('history', JSON.stringify(history));
+}
+
+// Cloaking
+document.title = 'Google';
+let link = document.createElement('link');
+link.rel = 'icon';
+link.href = 'https://www.google.com/favicon.ico';
+document.head.appendChild(link);
+
+// Init
+if(tabs.length===0) newTab(); else renderTabs();
+showHome();
+</script>
+
+</body>
+</html>
